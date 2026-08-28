@@ -62,25 +62,35 @@ if (!reducedMotion) {
 
 function initAnimations() {
   const loader = document.querySelector('.loader')
-  if (reducedMotion) {
-    loader.remove()
+  let loaderFinished = false
+  const finishLoader = () => {
+    if (loaderFinished) return
+    loaderFinished = true
+    document.body.classList.remove('is-loading')
     document.body.classList.add('is-ready')
+    loader?.remove()
+  }
+  if (reducedMotion) {
+    finishLoader()
     return
   }
   document.body.classList.add('is-loading')
-  const intro = gsap.timeline({
-    defaults: { ease: 'power3.out' },
-    onComplete: () => {
-      document.body.classList.remove('is-loading')
-      document.body.classList.add('is-ready')
-      loader.remove()
-    },
-  })
+  const loaderFallback = window.setTimeout(finishLoader, 2500)
+  const intro = gsap.timeline({ defaults: { ease: 'power3.out' } })
   intro
-    .from('.loader__panel img', { opacity: 0, scale: 0.85, duration: 1.25 })
-    .from('.loader__line', { scaleX: 0, transformOrigin: 'left', duration: 0.8 }, '-=0.35')
-    .from('.loader__panel p', { opacity: 0, y: 18, duration: 0.55 }, '-=0.4')
-    .to('.loader', { yPercent: -100, duration: 0.8, delay: 0.3, ease: 'power4.inOut' })
+    .from('.loader__panel img', { opacity: 0, scale: 0.88, duration: 0.65 })
+    .from('.loader__line', { scaleX: 0, transformOrigin: 'left', duration: 0.45 }, '-=0.25')
+    .from('.loader__panel p', { opacity: 0, y: 14, duration: 0.35 }, '-=0.25')
+    .to('.loader', {
+      yPercent: -100,
+      duration: 0.6,
+      delay: 0.1,
+      ease: 'power4.inOut',
+      onComplete: () => {
+        window.clearTimeout(loaderFallback)
+        finishLoader()
+      },
+    })
     .from('.hero__eyebrow', { opacity: 0, y: 30, duration: 0.65 }, '-=0.1')
     .from('.hero h1 span, .hero h1 strong', { opacity: 0, x: -80, duration: 1, stagger: 0.2, ease: 'power4.out' }, '-=0.3')
     .from('.hero__rule', { scaleX: 0, transformOrigin: 'left', duration: 0.5 }, '-=0.55')
