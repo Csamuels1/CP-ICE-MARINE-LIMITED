@@ -40,15 +40,11 @@ Contact details appear in the contact section and footer. Search for the existin
 
 The first crimson logo is authoritative. The alternate navy reference board is retained for traceability but is not displayed because its palette and tagline conflict with the approved brief.
 
-## Adding Authentic Photography
+## OCTG Photography
 
-The current site intentionally uses branded technical compositions instead of stock images or placeholders. When approved operational photography becomes available:
+The OCTG Supply Portfolio uses eight approved inventory photographs. Unmodified source files are retained in `public/assets/source/octg/`; optimized WebP derivatives are served from `public/assets/images/octg/`.
 
-1. Optimize images to WebP or AVIF at the required display dimensions.
-2. Place them under `public/assets/images/` with descriptive lowercase filenames.
-3. Add them only where they support the relevant operational capability.
-4. Include meaningful alternative text and `loading="lazy"` below the fold.
-5. Retain the dark crimson overlay treatment to preserve text contrast and brand consistency.
+When adding further approved photographs, preserve the original, create a numbered WebP derivative, add intrinsic dimensions and meaningful alternative text, and extend the carousel indicators and content tests. Do not add duplicate views or assign an unverified specification to a photograph.
 
 ## Netlify Deployment
 
@@ -76,4 +72,3 @@ Run `npm run build` and upload the contents of `dist/` to `public_html`. Static 
 - Navigation, controls, and forms are keyboard accessible with visible focus treatment.
 - The design supports 375px, 768px, and 1440px viewports.
 - Generated output, dependencies, local settings, and test reports are excluded from Git.
-

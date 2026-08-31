@@ -4,13 +4,14 @@ import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import {
   Anchor, ArrowDownRight, ArrowRight, ArrowUpRight, Building2, Clock3,
-  Construction, Cylinder, Handshake, Landmark, Mail, MapPin, Network,
+  ChevronLeft, ChevronRight, Construction, Cylinder, Handshake, Landmark, Mail, MapPin, Network,
   Phone, Send, ShieldCheck, Ship, UserRound, Waves, Workflow, createIcons,
 } from 'lucide'
 import { encodeFormData, validateEnquiry } from './form.js'
+import { nearestSlideIndex, wrapIndex } from './carousel.js'
 
 gsap.registerPlugin(ScrollTrigger)
-createIcons({ icons: { Anchor, ArrowDownRight, ArrowRight, ArrowUpRight, Building2, Clock3, Construction, Cylinder, Handshake, Landmark, Mail, MapPin, Network, Phone, Send, ShieldCheck, Ship, UserRound, Waves, Workflow } })
+createIcons({ icons: { Anchor, ArrowDownRight, ArrowRight, ArrowUpRight, Building2, ChevronLeft, ChevronRight, Clock3, Construction, Cylinder, Handshake, Landmark, Mail, MapPin, Network, Phone, Send, ShieldCheck, Ship, UserRound, Waves, Workflow } })
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const header = document.querySelector('[data-header]')
@@ -44,7 +45,8 @@ const sectionObserver = new IntersectionObserver((entries) => {
   const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0]
   if (!visible) return
   navLinks.forEach((link) => {
-    const active = link.getAttribute('href') === `#${visible.target.id}`
+    const activeSection = visible.target.dataset.navSection || visible.target.id
+    const active = link.getAttribute('href') === `#${activeSection}`
     link.classList.toggle('is-active', active)
     if (active) link.setAttribute('aria-current', 'location')
     else link.removeAttribute('aria-current')
@@ -108,10 +110,128 @@ function initAnimations() {
 }
 window.addEventListener('load', initAnimations, { once: true })
 
+function initOctgCarousel() {
+  const carousel = document.querySelector('[data-carousel]')
+  if (!carousel) return null
+
+  const track = carousel.querySelector('[data-carousel-track]')
+  const slides = [...carousel.querySelectorAll('[data-carousel-slide]')]
+  const dots = [...carousel.querySelectorAll('[data-carousel-dots] button')]
+  const previous = document.querySelector('[data-carousel-previous]')
+  const next = document.querySelector('[data-carousel-next]')
+  const status = carousel.querySelector('[data-carousel-status]')
+  let currentIndex = 0
+  let autoplayTimer
+  let resumeTimer
+  let scrollTimer
+  let hovered = false
+  let focusWithin = false
+  let dragging = false
+  let dragStartX = 0
+  let dragStartScroll = 0
+
+  const updateState = (announce = false) => {
+    dots.forEach((dot, index) => {
+      if (index === currentIndex) dot.setAttribute('aria-current', 'true')
+      else dot.removeAttribute('aria-current')
+    })
+    previous.disabled = slides.length < 2
+    next.disabled = slides.length < 2
+    if (announce) status.textContent = `Image ${currentIndex + 1} of ${slides.length}`
+  }
+
+  const goTo = (index, announce = false) => {
+    currentIndex = wrapIndex(index, slides.length)
+    track.scrollTo({ left: slides[currentIndex].offsetLeft, behavior: reducedMotion ? 'auto' : 'smooth' })
+    updateState(announce)
+  }
+
+  const pause = () => {
+    window.clearInterval(autoplayTimer)
+    autoplayTimer = undefined
+  }
+
+  const resume = () => {
+    pause()
+    if (reducedMotion || document.hidden || hovered || focusWithin || slides.length < 2) return
+    autoplayTimer = window.setInterval(() => goTo(currentIndex + 1), 5200)
+  }
+
+  const pauseForInteraction = () => {
+    pause()
+    window.clearTimeout(resumeTimer)
+    resumeTimer = window.setTimeout(resume, 7000)
+  }
+
+  const userGoTo = (index) => {
+    pauseForInteraction()
+    goTo(index, true)
+  }
+
+  previous.addEventListener('click', () => userGoTo(currentIndex - 1))
+  next.addEventListener('click', () => userGoTo(currentIndex + 1))
+  dots.forEach((dot, index) => dot.addEventListener('click', () => userGoTo(index)))
+
+  carousel.addEventListener('keydown', (event) => {
+    const commands = { ArrowLeft: currentIndex - 1, ArrowRight: currentIndex + 1, Home: 0, End: slides.length - 1 }
+    if (!(event.key in commands)) return
+    event.preventDefault()
+    userGoTo(commands[event.key])
+  })
+
+  track.addEventListener('scroll', () => {
+    window.clearTimeout(scrollTimer)
+    scrollTimer = window.setTimeout(() => {
+      currentIndex = nearestSlideIndex(slides.map((slide) => slide.offsetLeft), track.scrollLeft)
+      updateState(dragging)
+    }, 100)
+  }, { passive: true })
+
+  track.addEventListener('pointerdown', (event) => {
+    pauseForInteraction()
+    if (event.pointerType !== 'mouse') return
+    dragging = true
+    dragStartX = event.clientX
+    dragStartScroll = track.scrollLeft
+    track.classList.add('is-dragging')
+    track.setPointerCapture?.(event.pointerId)
+  })
+  track.addEventListener('pointermove', (event) => {
+    if (!dragging) return
+    track.scrollLeft = dragStartScroll - (event.clientX - dragStartX)
+  })
+  const finishDrag = () => {
+    dragging = false
+    track.classList.remove('is-dragging')
+  }
+  track.addEventListener('pointerup', finishDrag)
+  track.addEventListener('pointercancel', finishDrag)
+
+  carousel.addEventListener('mouseenter', () => { hovered = true; pause() })
+  carousel.addEventListener('mouseleave', () => { hovered = false; resume() })
+  carousel.addEventListener('focusin', () => { focusWithin = true; pause() })
+  carousel.addEventListener('focusout', () => {
+    window.setTimeout(() => {
+      focusWithin = carousel.contains(document.activeElement)
+      if (!focusWithin) resume()
+    })
+  })
+
+  updateState()
+  resume()
+  return { pause, resume }
+}
+
+const carouselController = initOctgCarousel()
+
 document.addEventListener('visibilitychange', () => {
-  if (!lenis) return
-  if (document.hidden) lenis.stop()
-  else lenis.start()
+  if (document.hidden) {
+    lenis?.stop()
+    carouselController?.pause()
+  } else {
+    lenis?.start()
+    carouselController?.resume()
+  }
 })
 
 const form = document.querySelector('.enquiry-form')
